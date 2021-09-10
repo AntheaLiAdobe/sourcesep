@@ -63,6 +63,7 @@ class AE_AtlasNet(pl.LightningModule):
         }
 
         if self.args.chamfer5d_loss:
+            # chamfer 5D reconstruction loss
             # change the relative scaling of [x,y] and [color] 
             relative_scale = torch.tensor([1.0, 1.0, s, s, s]).view(1, 1, 5).to(points1.device)
             points1 =  points1 * relative_scale
@@ -81,7 +82,8 @@ class AE_AtlasNet(pl.LightningModule):
             batch_loss['pairing'] = { 'pairing1': (idx1_1, idx1_2), 'pairing2': (idx2_1, idx2_2)}
 
         else:
-            
+            # reconstruction loss using shape and color separately
+            # shape reconstruction loss using chamfer distance
             dist1_1, dist1_2, idx1_1, idx1_2 = self.chamfer2D(gt_shape1, output_shape_1)
             shape_loss1 = (torch.mean(dist1_1)) + (torch.mean(dist1_2))
 
@@ -94,6 +96,7 @@ class AE_AtlasNet(pl.LightningModule):
 
 
             if not self.args.no_color_loss:
+                # color reconstruction loss using  shape-wise chamfer distance matching
                 idx1_2 = torch.clamp(idx1_2, min=0, max=gt_color2.shape[1])
                 idx2_2 = torch.clamp(idx2_2, min=0, max=gt_color2.shape[1])
 
@@ -105,14 +108,16 @@ class AE_AtlasNet(pl.LightningModule):
                 batch_loss['color_loss'] = color_loss1.item() + color_loss2.item()
 
         if not self.args.no_temporal_loss:
-            
+            # temporal losses 
             if self.args.chamfer5d_loss:        
+                # chamfer 5d temporal loss
                 time_loss = torch.pow(output1 - output2, 2).mean()
 
                 loss += time_loss * self.args.temporal_loss_weight
                 batch_loss['temporal_loss'] = time_loss.item()
 
             else:
+                # shape color temporal loss 
                 shape_time_loss = torch.pow(output_shape_1 - output_shape_2, 2).mean()
 
                 color_time_loss = torch.pow(output_color_2 - output_color_1, 2).mean()
@@ -141,7 +146,7 @@ class AE_AtlasNet(pl.LightningModule):
         outs2 = []
 
         for i in range(0,self.nb_primitives):
-
+            # reconstruction for the patch of time frame t
             context1 = x1.unsqueeze(2).expand(x1.size(0),x1.size(1), self.rand_grid.size(2))
             deformed_y1 = self.shape_decoder[i](self.rand_grid, context1)
             j1 = get_jacobian(deformed_y1, self.rand_grid, transpose=True)
@@ -150,6 +155,7 @@ class AE_AtlasNet(pl.LightningModule):
             if self.args.color_activation == "siren": c1 = (c1 + 1.0)/2.0
             outs1.append(torch.cat(( deformed_y1, c1), 1))
 
+            # reconstruction for the path of time frame t + 1
             context2 = x2.unsqueeze(2).expand(x2.size(0),x2.size(1), self.rand_grid.size(2))
             deformed_y2 = self.shape_decoder[i](self.rand_grid, context2)
             j2 = get_jacobian(deformed_y2, self.rand_grid, transpose=True)
@@ -160,8 +166,11 @@ class AE_AtlasNet(pl.LightningModule):
 
         outs1 = torch.cat(outs1,2).contiguous().transpose(2,1).contiguous()
         outs2 = torch.cat(outs2,2).contiguous().transpose(2,1).contiguous()
+
+        # jacobian regularization 
         jacobians = (j1, j2) if self.args.jacobian else None
 
+        # get losses 
         all_loss = self.loss(points1, outs1, points2, outs2, jacobian=jacobians, s=self.args.shape_color_scale)
         loss = all_loss['loss']
         self.log('loss', {'loss': loss.item(), 'shape_loss': all_loss['shape_loss'], 'color_loss': all_loss['color_loss'], 'temporal_loss': all_loss['temporal_loss']})
@@ -180,37 +189,6 @@ class AE_AtlasNet(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
-
-    def forward_inference(self, x, grid):
-        x = self.encoder(x)
-        outs = []
-        for i in range(0,self.nb_primitives):
-            rand_grid = Variable(torch.cuda.FloatTensor(grid[i]))
-            rand_grid = rand_grid.transpose(0,1).contiguous().unsqueeze(0)
-            rand_grid = rand_grid.expand(x.size(0),rand_grid.size(1), rand_grid.size(2)).contiguous()
-            y = x.unsqueeze(2).expand(x.size(0),x.size(1), rand_grid.size(2)).contiguous()
-            y = torch.cat( (rand_grid, y), 1).contiguous()
-            outs.append(self.decoder[i](y))
-        return torch.cat(outs,2).contiguous().transpose(2,1).contiguous()
-
-    def forward_inference_from_latent_space(self, x, grid):
-        outs = []
-        for i in range(0,self.nb_primitives):
-            rand_grid = Variable(torch.cuda.FloatTensor(grid[i]))
-            rand_grid = rand_grid.transpose(0,1).contiguous().unsqueeze(0)
-            rand_grid = rand_grid.expand(x.size(0),rand_grid.size(1), rand_grid.size(2)).contiguous()
-            y = x.unsqueeze(2).expand(x.size(0),x.size(1), rand_grid.size(2)).contiguous()
-            y = torch.cat( (rand_grid, y), 1).contiguous()
-            outs.append(self.decoder[i](y))
-        return torch.cat(outs,2).contiguous().transpose(2,1).contiguous()  
-
-    def forward(self, batch, batch_idx):
-        # in lightning, forward defines the prediction/inference actions
-        grid = None
-        if x.shape[-1] == self.bottleneck_size:
-            return self.forward_inference_from_latent_space(x, grid)
-        else:
-            return self.forward_inference(x, grid)
         
 
 # atlasnet decoder that predicts shape and color together
@@ -374,37 +352,6 @@ class AE_AtlasNet5D(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
 
-    def forward_inference(self, x, grid):
-        x = self.encoder(x)
-        outs = []
-        for i in range(0,self.nb_primitives):
-            rand_grid = Variable(torch.cuda.FloatTensor(grid[i]))
-            rand_grid = rand_grid.transpose(0,1).contiguous().unsqueeze(0)
-            rand_grid = rand_grid.expand(x.size(0),rand_grid.size(1), rand_grid.size(2)).contiguous()
-            y = x.unsqueeze(2).expand(x.size(0),x.size(1), rand_grid.size(2)).contiguous()
-            y = torch.cat( (rand_grid, y), 1).contiguous()
-            outs.append(self.decoder[i](y))
-        return torch.cat(outs,2).contiguous().transpose(2,1).contiguous()
-
-    def forward_inference_from_latent_space(self, x, grid):
-        outs = []
-        for i in range(0,self.nb_primitives):
-            rand_grid = Variable(torch.cuda.FloatTensor(grid[i]))
-            rand_grid = rand_grid.transpose(0,1).contiguous().unsqueeze(0)
-            rand_grid = rand_grid.expand(x.size(0),rand_grid.size(1), rand_grid.size(2)).contiguous()
-            y = x.unsqueeze(2).expand(x.size(0),x.size(1), rand_grid.size(2)).contiguous()
-            y = torch.cat( (rand_grid, y), 1).contiguous()
-            outs.append(self.decoder[i](y))
-        return torch.cat(outs,2).contiguous().transpose(2,1).contiguous()  
-
-    def forward(self, batch, batch_idx):
-        # in lightning, forward defines the prediction/inference actions
-        grid = None
-        if x.shape[-1] == self.bottleneck_size:
-            return self.forward_inference_from_latent_space(x, grid)
-        else:
-            return self.forward_inference(x, grid)
-        
 
 # network that predict shape first and use the predicted shape to predict color.
 class AE_AtlasNetInPlace(pl.LightningModule):

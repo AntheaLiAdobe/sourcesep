@@ -34,13 +34,15 @@ def cli_main():
     args = parser.parse_args()
     torch.cuda.set_device(args.gpu)
 
-    
+    # make dataloader
     train_dataset = TempFramePairs(data_sample=args.data_sample, sample_size=args.sample_size, data_len=args.data_len)
     train_loader = DataLoader(train_dataset, batch_size = args.batch_size, drop_last=True, shuffle=False) #, collate_fn=collate_feats_with_none_dict)
     val_loader = DataLoader(train_dataset)
 
     logger = TensorBoardLogger("tb_logs", name=args.output_dir.split('/')[-1])
 
+
+    # use different networks
     if args.affine_net:
         network = AffineNet(args, learning_rate=args.lr, batch_size=args.batch_size, num_points = args.num_points, nb_primitives = args.nb_primitives, output_dim=args.output_dim)
         network = network.cuda(device=args.gpu) 

@@ -33,25 +33,24 @@ def add_arguments(parent_parser):
     parser.add_argument('--no_temporal_loss', default=False, action='store_true',  help='whether to use temporal loss')
     parser.add_argument('--chamfer5d_loss',  default=False,  action='store_true', help='whether to use chamfer5d for temporal loss')
     parser.add_argument('--jacobian',  default=False,  action='store_true', help='whether to use chamfer5d for temporal loss')
-    parser.add_argument('--shape_loss_weight', default=1.0, type=float)
-    parser.add_argument('--color_loss_weight', default=1.0, type=float)
-    parser.add_argument('--shape_temporal_loss_weight', default=1.0, type=float)
-    parser.add_argument('--color_temporal_loss_weight', default=1.0, type=float)
-    parser.add_argument('--temporal_loss_weight', default=1.0, type=float)
-    parser.add_argument('--shape_color_scale', default=1.0, type=float)
+    parser.add_argument('--shape_loss_weight', default=1.0, type=float, help='weight that controls shape loss, when using separate shape and color supervision')
+    parser.add_argument('--color_loss_weight', default=1.0, type=float, help='weight that controls color loss, when using separate shape and color supervision')
+    parser.add_argument('--shape_temporal_loss_weight', default=1.0, type=float, help='weight that controls shape temporal loss')
+    parser.add_argument('--color_temporal_loss_weight', default=1.0, type=float, help='weight that controls color temporal loss')
+    parser.add_argument('--temporal_loss_weight', default=1.0, type=float, help='weight that controls the temporal loss term in general')
+    parser.add_argument('--shape_color_scale', default=1.0, type=float, help='relative wrighting between shape and color')
 
     
 
     # temporal experiment specifications
     parser.add_argument('--data_sample', type=int, default=1,  help='data_sample')
     parser.add_argument('--data_len', type=int, default=1,  help='data_sample')
-    parser.add_argument('--affine_net',  default=False,  action='store_true', help='affine trans')
-    parser.add_argument('--affinemlp_net',  default=False,  action='store_true', help='affine trans')
-    parser.add_argument('--rotmlp_net',  default=False,  action='store_true', help='affine trans')
-    parser.add_argument('--fixmap_net',  default=False,  action='store_true', help='affine trans')
-    parser.add_argument('--identity_net',  default=False,  action='store_true', help='affine trans')
-    parser.add_argument('--inplace_net',  default=False,  action='store_true', help='affine trans')
-    parser.add_argument('--atlas5d_net',  default=False,  action='store_true', help='affine trans')
+    parser.add_argument('--affine_net',  default=False,  action='store_true', help='affine transformation network with direct parameter regression')
+    parser.add_argument('--affinemlp_net',  default=False,  action='store_true', help='affine transformation network using MLP to predict transformation parameters')
+    parser.add_argument('--fixmap_net',  default=False,  action='store_true', help='affine transformation network that uses fixed mapping / correpondences')
+    parser.add_argument('--identity_net',  default=False,  action='store_true', help='identity network that only predicts the color per point ')
+    parser.add_argument('--inplace_net',  default=False,  action='store_true', help='network that first predicts deformation and then use deformed point cloud to predict color')
+    parser.add_argument('--atlas5d_net',  default=False,  action='store_true', help='network that directly use atlasnet to predict 5 channel output')
 
 
 
