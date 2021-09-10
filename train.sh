@@ -1,0 +1,13 @@
+python train.py 
+--output_dir output/test9-atlas-chamfer5D1e-2_5dnet-jacobian-colorT10 --chamfer5d_loss \
+--color_activation sigmoid \
+--epoch 1000000 \
+--vis_freq 100 \
+--lr 5e-3 \
+--data_len 30 \
+--shape_color_scale 0.01 \
+--atlas5d_net \
+--jacobian \
+--color_temporal_loss_weight 10 \
+--data_sample 9 \
+--chamfer5d_loss 
