@@ -14,6 +14,9 @@ conf.py -- configuration file to modify different experiment settings`
 
 `models
  |----- modules.py -- stores different network modules such as resnet and atlasnet 
+ 
  |----- network.py -- the main networks that exhibited the best performance with atlasnet decoder
+ 
  |----- affine_network.py -- the networks that uses affine transformations
+ 
  |----- fix_mapping_netowrk.py -- the networks that uses affine transformation and fixed mapping`
